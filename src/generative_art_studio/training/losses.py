@@ -64,6 +64,9 @@ def discriminator_loss(real_pred: torch.Tensor, fake_pred: torch.Tensor) -> torc
         return (real_loss + fake_loss) / 2
     (`bce_loss` is provided at module level.)
     """
+    real_loss = bce_loss(real_pred, torch.ones_like(real_pred))
+    fake_loss = bce_loss(fake_pred, torch.zeros_like(fake_pred))
+    return (real_loss + fake_loss) / 2
     raise NotImplementedError(
         "TODO: implement discriminator_loss using bce_loss against ones (real) "
         "and zeros (fake), averaged."
@@ -79,6 +82,7 @@ def generator_loss(fake_pred: torch.Tensor) -> torch.Tensor:
     (rather than minimizing `log(1 - D(G(z)))`, which saturates early in
     training — see docs/PROJECT_BRIEF.md's "training instability" topic).
     """
+    return bce_loss(fake_pred, torch.ones_like(fake_pred))
     raise NotImplementedError(
         "TODO: implement generator_loss using bce_loss(fake_pred, ones_like(fake_pred))."
     )
@@ -96,6 +100,7 @@ def wgan_critic_loss(real_score: torch.Tensor, fake_score: torch.Tensor) -> torc
     output is an unbounded score, and this loss approximates the (negative)
     Earth-Mover / Wasserstein distance between real and fake distributions.
     """
+    return fake_score.mean() - real_score.mean()
     raise NotImplementedError(
         "TODO: implement wgan_critic_loss — return fake_score.mean() - real_score.mean()."
     )
@@ -107,6 +112,7 @@ def wgan_generator_loss(fake_score: torch.Tensor) -> torch.Tensor:
     TODO(Phase 2 - WGAN training stability): implement
         return -fake_score.mean()
     """
+    return -fake_score.mean()
     raise NotImplementedError("TODO: implement wgan_generator_loss — return -fake_score.mean().")
 
 
@@ -131,6 +137,19 @@ def gradient_penalty(
         5. Flatten the gradient to (B, -1), take its L2 norm per sample,
            and return `((grad_norm - 1) ** 2).mean()`.
     """
+    eps = torch.rand(real.size(0), 1, 1, 1, device=device)
+    interpolated = (eps * real + (1 - eps) * fake).requires_grad_(True)
+    scores = critic(interpolated)
+    gradients = torch.autograd.grad(
+        outputs=scores,
+        inputs=interpolated,
+        grad_outputs=torch.ones_like(scores),
+        create_graph=True,
+        retain_graph=True,
+    )[0]
+    gradients = gradients.view(gradients.size(0), -1)
+    grad_norm = gradients.norm(2, dim=1)
+    return ((grad_norm - 1) ** 2).mean()
     raise NotImplementedError(
         "TODO: implement the WGAN-GP gradient penalty — see the docstring's 5-step recipe."
     )
@@ -153,6 +172,9 @@ def pix2pix_generator_loss(
     The large `lambda_l1` weight is what makes Pix2Pix outputs stay close
     to the target structure rather than just "looking real."
     """
+    adv_loss = F.binary_cross_entropy_with_logits(disc_fake_pred, torch.ones_like(disc_fake_pred))
+    l1 = l1_loss(fake_img, target_img)
+    return adv_loss + lambda_l1 * l1
     raise NotImplementedError(
         "TODO: implement pix2pix_generator_loss — BCE-with-logits adversarial term "
         "plus lambda_l1 * L1 reconstruction term."
@@ -182,6 +204,7 @@ def cycle_consistency_loss(real: torch.Tensor, reconstructed: torch.Tensor) -> t
     back). This is what constrains the generators without needing paired
     (input, target) examples like Pix2Pix does.
     """
+    return l1_loss(reconstructed, real)
     raise NotImplementedError("TODO: implement cycle_consistency_loss — return l1_loss(reconstructed, real).")
 
 
