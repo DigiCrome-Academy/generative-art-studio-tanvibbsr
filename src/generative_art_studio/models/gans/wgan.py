@@ -14,6 +14,40 @@ import torch
 import torch.nn as nn
 
 
+def conv_block(
+    in_channels: int,
+    out_channels: int,
+    kernel_size: int = 4,
+    stride: int = 2,
+    padding: int = 1,
+    use_instance_norm: bool = True,
+    first_block: bool = False,
+) -> nn.Module:
+    """Build a convolutional block for the WGANCritic.
+
+    This mirrors the DCGAN discriminator stack while avoiding BatchNorm in
+    the critic to keep the WGAN gradient penalty valid for each sample.
+    """
+    layers: list[nn.Module] = [
+        nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            bias=not use_instance_norm,
+        )
+    ]
+
+    if use_instance_norm:
+        layers.append(nn.InstanceNorm2d(out_channels, affine=True))
+    elif not first_block:
+        layers.append(nn.BatchNorm2d(out_channels))
+
+    layers.append(nn.LeakyReLU(0.2, inplace=True))
+    return nn.Sequential(*layers)
+
+
 class WGANCritic(nn.Module):
     """Mirrors DCGANDiscriminator's architecture but has no final Sigmoid.
 
@@ -30,10 +64,17 @@ class WGANCritic(nn.Module):
     def __init__(self, img_channels: int = 3, feature_maps: int = 64, use_instance_norm: bool = True):
         super().__init__()
         self.feature_maps = feature_maps
-        self.net: nn.Sequential | None = None  # TODO: build per the docstring above
-        raise NotImplementedError(
-            "TODO: build self.net as described in the class docstring, "
-            "then remove this raise."
+        self.net = nn.Sequential(
+            conv_block(
+                img_channels,
+                feature_maps,
+                use_instance_norm=use_instance_norm,
+                first_block=True,
+            ),
+            conv_block(feature_maps, feature_maps * 2, use_instance_norm=use_instance_norm),
+            conv_block(feature_maps * 2, feature_maps * 4, use_instance_norm=use_instance_norm),
+            conv_block(feature_maps * 4, feature_maps * 8, use_instance_norm=use_instance_norm),
+            nn.Conv2d(feature_maps * 8, 1, kernel_size=4, stride=1, padding=0),
         )
 
     def forward(self, img: torch.Tensor) -> torch.Tensor:
