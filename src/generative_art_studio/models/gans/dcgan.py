@@ -13,6 +13,7 @@ Best practices you are implementing here:
 """
 from __future__ import annotations
 
+
 import torch
 import torch.nn as nn
 
@@ -38,10 +39,21 @@ class DCGANGenerator(nn.Module):
         super().__init__()
         self.latent_dim = latent_dim
         self.feature_maps = feature_maps
-        self.net: nn.Sequential | None = None  # TODO: build per the docstring above
-        raise NotImplementedError(
-            "TODO: build self.net as described in the class docstring, "
-            "then remove this raise."
+        self.net = nn.Sequential(
+            nn.ConvTranspose2d(latent_dim, feature_maps * 8, kernel_size=4, stride=1, padding=0),
+            nn.BatchNorm2d(feature_maps * 8),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(feature_maps * 8, feature_maps * 4, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps * 4),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(feature_maps * 4, feature_maps * 2, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps * 2),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(feature_maps * 2, feature_maps, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(feature_maps, img_channels, kernel_size=4, stride=2, padding=1),
+            nn.Tanh(),
         )
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
@@ -67,10 +79,20 @@ class DCGANDiscriminator(nn.Module):
     def __init__(self, img_channels: int = 3, feature_maps: int = 64):
         super().__init__()
         self.feature_maps = feature_maps
-        self.net: nn.Sequential | None = None  # TODO: build per the docstring above
-        raise NotImplementedError(
-            "TODO: build self.net as described in the class docstring, "
-            "then remove this raise."
+        self.net = nn.Sequential(
+            nn.Conv2d(img_channels, feature_maps, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(feature_maps, feature_maps * 2, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(feature_maps * 2, feature_maps * 4, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(feature_maps * 4, feature_maps * 8, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(feature_maps * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(feature_maps * 8, 1, kernel_size=4, stride=1, padding=0),
+            nn.Sigmoid(),
         )
 
     def forward(self, img: torch.Tensor) -> torch.Tensor:
