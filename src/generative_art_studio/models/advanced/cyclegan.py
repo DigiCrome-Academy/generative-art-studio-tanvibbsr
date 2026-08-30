@@ -39,6 +39,7 @@ class ResidualBlock(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x + self.block(x)
         raise NotImplementedError(
             "TODO: implement the residual skip connection — return x + self.block(x)."
         )
