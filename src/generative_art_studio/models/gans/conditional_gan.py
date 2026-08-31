@@ -45,6 +45,11 @@ class ConditionalGenerator(nn.Module):
         (B, img_channels, img_size, img_size) — see `VanillaGenerator.forward`
         in `vanilla_gan.py` for the reshape pattern.
         """
+        label_emb = self.label_embedding(labels)
+        combined = torch.cat([z, label_emb], dim=1)
+        flat_output = self.net(combined)
+        return flat_output.view(-1, self.img_channels, self.img_size, self.img_size)
+
         raise NotImplementedError(
             "TODO: embed labels, concatenate with z, run through self.net, "
             "reshape to an image tensor."
@@ -80,6 +85,10 @@ class ConditionalDiscriminator(nn.Module):
         `labels` with `self.label_embedding`, concatenate
         `[flat_img, label_emb]` along dim=1, and pass through `self.net`.
         """
+        flat_img = img.view(img.size(0), -1)
+        label_emb = self.label_embedding(labels)
+        combined = torch.cat([flat_img, label_emb], dim=1)
+        return self.net(combined)
         raise NotImplementedError(
             "TODO: flatten img, embed labels, concatenate, run through self.net."
         )

@@ -44,9 +44,17 @@ def compute_fid(real_features: np.ndarray, fake_features: np.ndarray) -> float:
     complex-valued array due to numerical error — take `.real` before
     using it). Lower FID = more similar distributions = better generator.
     """
+    mu1 = real_features.mean(axis=0)
+    mu2 = fake_features.mean(axis=0)
+    sigma1 = np.cov(real_features, rowvar=False)
+    sigma2 = np.cov(fake_features, rowvar=False)
+    fid = np.sum((mu1 - mu2) ** 2) + np.trace(sigma1 + sigma2 - 2 * linalg.sqrtm(sigma1 @ sigma2)).real
+    return fid
+
     raise NotImplementedError(
         "TODO: implement compute_fid — see the docstring for the Fréchet distance formula "
         "and the np.cov / scipy.linalg.sqrtm hints."
+
     )
 
 
@@ -64,10 +72,25 @@ def compute_inception_score(preds: np.ndarray, splits: int = 10) -> tuple[float,
     Then return `(mean(scores across splits), std(scores across splits))`.
     Add a small epsilon (e.g. 1e-16) inside the logs to avoid log(0).
     """
-    raise NotImplementedError(
-        "TODO: implement compute_inception_score — see the docstring for the "
-        "per-split KL-divergence formula."
-    )
+    # Split the predictions into `splits` equal chunks
+    chunk_size = len(preds) // splits
+    scores = []
+    for i in range(splits):
+        start_idx = i * chunk_size
+        end_idx = start_idx + chunk_size if i < splits - 1 else len(preds)
+        chunk = preds[start_idx:end_idx]
+
+        # Compute the marginal distribution p(y)
+        p_y = chunk.mean(axis=0)
+
+        # Compute the KL divergence for each sample
+        epsilon = 1e-16
+        p_y = np.clip(p_y, epsilon, 1 - epsilon)
+        kl_div = np.sum(chunk * (np.log(chunk + epsilon) - np.log(p_y)), axis=1)
+        scores.append(np.exp(np.mean(kl_div)))
+
+    return np.mean(scores), np.std(scores)
+
 
 
 class _InceptionFeatureExtractor(nn.Module):

@@ -85,6 +85,13 @@ def generate_samples(model_key: str, model: nn.Module, num_samples: int, seed: i
     Seed the RNG first if `seed is not None` (`torch.manual_seed(seed)`) so
     the UI's "regenerate with this seed" control is reproducible.
     """
+    if seed is not None:
+        torch.manual_seed(seed)
+    if model_key == "vae":
+        return model.sample(num_samples, device=device)
+    else:
+        z = torch.randn(num_samples, MODEL_REGISTRY[model_key].latent_dim, device=device)
+        return model(z)
     raise NotImplementedError(
         "TODO: implement generate_samples — branch on model_key to call either "
         "VAE.sample(...) or a GAN generator on a sampled latent batch. See the docstring."
@@ -105,6 +112,14 @@ def export_image(image: torch.Tensor, path: str | Path, scale_factor: int = 4) -
          (create parent directories with `Path(path).parent.mkdir(parents=True, exist_ok=True)`).
       4. Return the `Path` you saved to.
     """
+    denormalized = denormalize(image.unsqueeze(0)).squeeze(0)
+    upscaled = torch.nn.functional.interpolate(denormalized.unsqueeze(0), scale_factor=scale_factor, mode="bicubic", align_corners=False).squeeze(0)
+    upscaled = (upscaled.permute(1, 2, 0) * 255).byte().cpu().numpy()
+    img = Image.fromarray(upscaled) 
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(path)
+    return path
     raise NotImplementedError(
         "TODO: implement export_image — denormalize, upsample by scale_factor, "
         "convert to PIL, and save a high-resolution PNG. See the docstring."

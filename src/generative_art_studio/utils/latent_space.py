@@ -40,9 +40,8 @@ def interpolate_latent(z1: torch.Tensor, z2: torch.Tensor, steps: int = 10) -> t
     Hint: build a tensor of `t` values with `torch.linspace(0, 1, steps)`
     and combine it with z1/z2 via broadcasting: `(1 - t) * z1 + t * z2`.
     """
+    t_values = torch.linspace(0, 1, steps)
+    interpolated = (1 - t_values.unsqueeze(1)) * z1 + t_values.unsqueeze(1) * z2
     if z1.shape != z2.shape or z1.dim() != 1:
         raise ValueError("z1 and z2 must be 1-D tensors of the same shape")
-    raise NotImplementedError(
-        "TODO: implement interpolate_latent — see docstring for the linear "
-        "interpolation formula and torch.linspace hint."
-    )
+    return interpolated
